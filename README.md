@@ -41,6 +41,103 @@ The app opens at <http://localhost:5173>.
 | `npm run typecheck` | Run TypeScript without emitting files             |
 | `npm run format`    | Format `src/` with Prettier                       |
 
+## Production
+
+After `npm run build`, the entire app is a set of static files in `dist/` (HTML + JS + CSS). No Node.js runtime is required on the server.
+
+### Local preview
+
+To verify the production build locally:
+
+```bash
+npm run build
+npm run preview          # http://localhost:4173
+npm run preview -- --host 0.0.0.0 --port 4173   # accessible on LAN
+```
+
+> `vite preview` is intended only for local verification. It is **not** a production server — it lacks proper caching headers, compression tuning, and security headers. Do not expose it to real traffic.
+
+### Static hosting (recommended)
+
+Upload the contents of `dist/` to any static host: nginx, Caddy, Apache, S3 + CloudFront, Firebase Hosting, GitHub Pages, etc.
+
+Minimal nginx config with SPA fallback and asset caching:
+
+```nginx
+server {
+  listen 80;
+  server_name _;
+  root /var/www/todoai/dist;
+  index index.html;
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  gzip on;
+  gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+}
+```
+
+### Docker (multi-stage with nginx)
+
+Recommended container setup: build with Node, serve with nginx. Resulting image is ~30 MB.
+
+**Dockerfile:**
+
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**.dockerignore:**
+
+```
+node_modules
+dist
+.git
+.opencode
+.env*
+```
+
+**Build and run:**
+
+```bash
+docker build -t macnaer/todoai .
+docker run --rm -p 8080:80 macnaer/todoai
+# open http://localhost:8080
+```
+
+> Avoid using `vite preview` as your container `CMD` — the resulting image is ~10x larger, has no production-grade HTTP layer, and Vite itself warns against it. Also note: `--host` accepts a hostname or IP (`0.0.0.0`), never a URL like `http://0.0.0.0`.
+
+### Platform-as-a-Service
+
+Zero-config deploys with built-in HTTPS and CDN:
+
+| Platform | Build command | Output directory |
+| --- | --- | --- |
+| Vercel | `npm run build` | `dist` |
+| Netlify | `npm run build` | `dist` |
+| Cloudflare Pages | `npm run build` | `dist` |
+| GitHub Pages | `npm run build` (via GitHub Actions) | `dist` |
+
+For GitHub Pages under a sub-path (e.g. `/ToDoAI/`), set `base: '/ToDoAI/'` in `vite.config.ts` before building.
+
 ## Project structure
 
 ```
