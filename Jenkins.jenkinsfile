@@ -4,7 +4,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "macnaer/todoai"
+        IMAGE_NAME = "benderrodriguez89/todoai"
     }
 
     stages {
