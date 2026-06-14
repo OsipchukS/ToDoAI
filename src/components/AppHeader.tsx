@@ -66,7 +66,7 @@ export function AppHeader({ onCreate }: AppHeaderProps) {
         <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
           <ThemeToggle />
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<AddIcon />}
             onClick={onCreate}
             sx={{ whiteSpace: 'nowrap' }}
